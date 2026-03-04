@@ -1,0 +1,301 @@
+nova-reapers/
+├─ app/
+│  ├─ page.tsx               ← Ana sayfa
+│  ├─ dashboard/
+│  │  └─ page.tsx            ← Oyuncu/Lig paneli
+├─ components/               ← Card, Button, Progress
+│  └─ ui/                    ← shadcn/ui bileşenleri
+├─ public/                   ← Logo, görseller
+├─ styles/                   ← globals.css
+├─ package.json
+├─ next.config.js
+├─ tsconfig.json
+├─ .env.local                ← Supabase URL ve Key
+└─ README.md
+git init
+git add .
+git commit -m "Initial commit NOVA REAPERS platform"
+git branch -M main
+git remote add origin https://github.com/<kullanici-adin>/nova-reapers.git
+git push -u origin main
+// nova-reapers.tsx
+"use client";
+
+import { useState, useEffect } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useRouter } from "next/navigation";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { CalendarDays, TrendingUp, BarChart3, Target } from "lucide-react";
+
+export default function NovaReapersApp() {
+  const supabase = createClientComponentClient();
+  const router = useRouter();
+
+  const [session, setSession] = useState<any>(null);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [leagues, setLeagues] = useState<any[]>([]);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        setAlertMessage("Giriş yapılmamış, lütfen giriş yapın.");
+        router.push("/");
+      } else {
+        setSession(data.session);
+      }
+    });
+    fetchPlayers();
+    fetchLeagues();
+  }, []);
+
+  const fetchPlayers = async () => {
+    const { data, error } = await supabase.from("players").select("*");
+    if (error) setAlertMessage("Oyuncu verileri alınamadı!");
+    else if (data.length === 0) setAlertMessage("Henüz oyuncu eklenmemiş.");
+    if (data) setPlayers(data);
+  };
+
+  const fetchLeagues = async () => {
+    const { data, error } = await supabase.from("leagues").select("*");
+    if (error) setAlertMessage("Lig verileri alınamadı!");
+    else if (data.length === 0) setAlertMessage("Henüz lig oluşturulmamış.");
+    if (data) setLeagues(data);
+  };
+
+  const signIn = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    if (error) setAlertMessage(`Giriş yapılamadı: ${error.message}`);
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) setAlertMessage(`Çıkış yapılamadı: ${error.message}`);
+    setSession(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white relative">
+      {/* ALERT */}
+      {alertMessage && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-2xl shadow-lg z-50">
+          {alertMessage}
+          <button className="ml-4 font-bold" onClick={() => setAlertMessage(null)}>✕</button>
+        </div>
+      )}
+
+      {/* HERO */}
+      <section className="flex flex-col items-center justify-center text-center py-20 px-6 bg-gradient-to-b from-red-900/40 to-black">
+        <h1 className="text-5xl md:text-7xl font-extrabold mb-4 tracking-widest">NOVA REAPERS</h1>
+        <p className="text-gray-400 max-w-2xl text-lg mb-6">
+          Türkiye PUBG Platformu — Oyuncu Gelişimi, Lig & Performans Analizi
+        </p>
+        {!session ? (
+          <Button className="rounded-2xl px-8 py-4 text-lg bg-red-600 hover:bg-red-700" onClick={signIn}>Google ile Giriş</Button>
+        ) : (
+          <Button className="rounded-2xl px-8 py-4 text-lg bg-red-600 hover:bg-red-700" onClick={signOut}>Çıkış Yap</Button>
+        )}
+      </section>
+
+      {/* PLAYERS */}
+      <section className="py-16 px-6 bg-gray-950">
+        <h2 className="text-3xl font-bold text-center mb-10">Oyuncular ve Gelişim</h2>
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {players.length > 0 ? players.map(p => (
+            <Card key={p.id} className="bg-gray-900 rounded-2xl shadow-xl">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold mb-2">{p.nickname}</h3>
+                <p className="text-gray-400 mb-4">{p.game}</p>
+                <Progress value={Math.random()*100} className="mb-2"/>
+                <Progress value={Math.random()*100} className="mb-2"/>
+                <Progress value={Math.random()*100}/>
+              </CardContent>
+            </Card>
+          )) : <p className="text-center text-gray-500 col-span-2">Henüz oyuncu eklenmemiş.</p>}
+        </div>
+      </section>
+
+      {/* LEAGUES */}
+      <section className="py-16 px-6">
+        <h2 className="text-3xl font-bold text-center mb-10">Ligler</h2>
+        <div className="max-w-3xl mx-auto grid gap-4">
+          {leagues.length > 0 ? leagues.map(l => (
+            <Card key={l.id} className="bg-gray-900 rounded-2xl shadow-xl">
+              <CardContent className="p-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold">{l.name}</h3>
+                  <p className="text-gray-400">{l.type} — {l.status}</p>
+                </div>
+                <CalendarDays size={28}/>
+              </CardContent>
+            </Card>
+          )) : <p className="text-center text-gray-500">Henüz lig oluşturulmamış.</p>}
+        </div>
+      </section>
+
+      {/* PERFORMANCE */}
+      <section className="py-16 px-6 bg-gray-950">
+        <h2 className="text-3xl font-bold text-center mb-10">Performans Analizi</h2>
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          <Card className="bg-gray-900 rounded-2xl shadow-xl text-center p-6">
+            <TrendingUp size={36} className="mx-auto mb-3"/>
+            <h3 className="font-bold mb-2">İstatistik Takibi</h3>
+            <p className="text-gray-400 text-sm">Maç başı detaylı veri analizi ve gelişim raporları.</p>
+          </Card>
+          <Card className="bg-gray-900 rounded-2xl shadow-xl text-center p-6">
+            <BarChart3 size={36} className="mx-auto mb-3"/>
+            <h3 className="font-bold mb-2">Grafiksel Raporlama</h3>
+            <p className="text-gray-400 text-sm">Haftalık performans trendleri ve ilerleme grafikleri.</p>
+          </Card>
+          <Card className="bg-gray-900 rounded-2xl shadow-xl text-center p-6">
+            <Target size={36} className="mx-auto mb-3"/>
+            <h3 className="font-bold mb-2">Hedef Sistemi</h3>
+            <p className="text-gray-400 text-sm">Oyuncular için bireysel gelişim hedefleri ve görev takibi.</p>
+          </Card>
+        </div>
+      </section>
+
+      <footer className="py-8 text-center text-gray-500 border-t border-gray-800">
+        © {new Date().getFullYear()} NOVA REAPERS. Tüm hakları saklıdır.
+      </footer>
+    </div>
+  );
+}
+-- Oyuncular tablosu
+create table players (
+  id bigint generated by default as identity primary key,
+  nickname text not null,
+  game text not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Ligler tablosu
+create table leagues (
+  id bigint generated by default as identity primary key,
+  name text not null,
+  type text not null, -- Academy / Pro / Open
+  status text not null, -- Active / Finished
+  created_at timestamp with time zone default now()
+);
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+npm install @supabase/auth-helpers-nextjs lucide-react
+npx shadcn-ui init
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+git init
+git add .
+git commit -m "Initial NOVA REAPERS commit"
+git branch -M main
+git remote add origin https://github.com/<kullanici-adin>/nova-reapers.git
+git push -u origin main
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+// components/AddPlayerForm.tsx
+"use client";
+
+import { useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Button } from "@/components/ui/button";
+
+export default function AddPlayerForm({ onAdded }: { onAdded: () => void }) {
+  const supabase = createClientComponentClient();
+  const [nickname, setNickname] = useState("");
+  const [game, setGame] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.from("players").insert([{ nickname, game }]);
+    if (error) alert("Oyuncu eklenemedi: " + error.message);
+    else {
+      setNickname("");
+      setGame("");
+      onAdded();
+      alert("Oyuncu başarıyla eklendi!");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md mx-auto mb-10">
+      <input
+        type="text"
+        placeholder="Oyuncu Nickname"
+        value={nickname}
+        onChange={(e) => setNickname(e.target.value)}
+        className="px-4 py-2 rounded-xl bg-gray-800 text-white"
+        required
+      />
+      <input
+        type="text"
+        placeholder="Oyun"
+        value={game}
+        onChange={(e) => setGame(e.target.value)}
+        className="px-4 py-2 rounded-xl bg-gray-800 text-white"
+        required
+      />
+      <Button type="submit" disabled={loading} className="bg-red-600 hover:bg-red-700 rounded-2xl py-2">
+        {loading ? "Ekleniyor..." : "Oyuncu Ekle"}
+      </Button>
+    </form>
+  );
+}
+// components/AddLeagueForm.tsx
+"use client";
+
+import { useState } from "react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { Button } from "@/components/ui/button";
+
+export default function AddLeagueForm({ onAdded }: { onAdded: () => void }) {
+  const supabase = createClientComponentClient();
+  const [name, setName] = useState("");
+  const [type, setType] = useState("Academy");
+  const [status, setStatus] = useState("Active");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.from("leagues").insert([{ name, type, status }]);
+    if (error) alert("Lig eklenemedi: " + error.message);
+    else {
+      setName("");
+      setType("Academy");
+      setStatus("Active");
+      onAdded();
+      alert("Lig başarıyla eklendi!");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md mx-auto mb-10">
+      <input
+        type="text"
+        placeholder="Lig Adı"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="px-4 py-2 rounded-xl bg-gray-800 text-white"
+        required
+      />
+      <select value={type} onChange={(e) => setType(e.target.value)} className="px-4 py-2 rounded-xl bg-gray-800 text-white">
+        <option value="Academy">Academy</option>
+        <option value="Pro">Pro</option>
+        <option value="Open">Open</option>
+      </select>
+      <select value={status} onChange={(e) => setStatus(e.target.value)} className="px-4 py-2 rounded-xl bg-gray-800 text-white">
+        <option value="Active">Active</option>
+        <option value="Finished">Finished</option>
+      </select>
+      <Button type="submit" disabled={loading} className="bg-red-600 hover:bg-red-700 rounded-2xl py-2">
+        {loading ? "Ekleniyor..." : "Lig Ekle"}
+      </Button>
+    </form>
+  );
+}
